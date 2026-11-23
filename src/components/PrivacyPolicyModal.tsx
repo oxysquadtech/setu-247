@@ -112,7 +112,7 @@ export const PrivacyPolicyModal: React.FC<ModalProps> = ({ isOpen, onClose }) =>
               5. Candidate &amp; User Inquiries
             </h4>
             <p>
-              You may request review, modification, or complete deletion of your submitted application data at any time by contacting us directly at <span className="font-mono text-sky-400">{siteConfig.emails.contact}</span>.
+              You may request review, modification, or complete deletion of your submitted application data at any time by contacting us directly at <a href={`mailto:${siteConfig.emails.contact}?subject=Privacy%20Inquiry%20-%20Setu247`} className="font-mono text-sky-400 hover:text-sky-300 underline underline-offset-2" title="Click to email">{siteConfig.emails.contact}</a>.
             </p>
           </div>
 

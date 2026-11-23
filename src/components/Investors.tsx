@@ -366,13 +366,14 @@ export const Investors: React.FC = () => {
             </form>
 
             <div className="mt-8 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#747982]">
-              <span>Direct investor relations desk:</span>
+              <span>Direct investor relations desk (Click to email):</span>
               <a
-                href={`mailto:${siteConfig.emails.investors}`}
-                className="text-sky-400 hover:text-sky-300 font-mono flex items-center gap-1"
+                href={`mailto:${siteConfig.emails.investors}?subject=Investor%20%2F%20Strategic%20Enquiry%20-%20Setu247&body=Hi%20Setu247%20Team%2C%0A%0AWe%20are%20interested%20in%20initiating%20a%20confidential%20dialogue%20regarding%20the%20Setu247%20health-tech%20venture.%0A%0AName%3A%20%0AFund%20%2F%20Organisation%3A%20%0AInvestor%20Type%3A%20%0A%0ABest%20regards%2C`}
+                className="group/mail inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 hover:text-sky-300 font-mono transition-all border border-sky-400/20 hover:border-sky-400/40"
+                title="Click to open your mail application"
               >
                 <span>{siteConfig.emails.investors}</span>
-                <ArrowRight className="w-3 h-3" />
+                <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover/mail:translate-x-0.5" />
               </a>
             </div>
 

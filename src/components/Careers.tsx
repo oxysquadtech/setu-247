@@ -40,6 +40,9 @@ export const Careers: React.FC<CareersProps> = ({ onOpenPrivacy }) => {
     honeypot: '',
   });
 
+  const [customDomain, setCustomDomain] = useState('');
+  const isOtherDomain = formData.domain === 'Other / Multidisciplinary Role';
+
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<{
@@ -48,15 +51,86 @@ export const Careers: React.FC<CareersProps> = ({ onOpenPrivacy }) => {
     referenceId?: string;
   } | null>(null);
 
-  const domains = [
-    'Software & Full-Stack Engineering',
-    'Mobile Systems (iOS / Android)',
-    'AI, Data Science & Machine Learning',
-    'Product Management & Strategy',
-    'UI / UX & Design Systems',
-    'Clinical Informatics & Bio-tech',
-    'Operations, Growth & Talent',
-    'Other / Multidisciplinary',
+  const roleGroups = [
+    {
+      department: 'Technology Team',
+      roles: [
+        'Lead Software Architect',
+        'Full Stack Developer',
+        'Mobile App Developer (iOS / Android)',
+        'UI / UX Designer',
+        'QA / Tester',
+        'DevOps Engineer',
+        'Data Science & AI Engineer',
+      ],
+    },
+    {
+      department: 'Healthcare Team',
+      roles: [
+        'Medical Director / Consultant',
+        'Clinical Operations Manager',
+        'Health Records Manager',
+        'Teleconsultation Support',
+        'Nurse / Patient Care Coordinator',
+        'Clinical Specialist (Doctor / Radiologist / Pathologist)',
+      ],
+    },
+    {
+      department: 'Operations Team',
+      roles: [
+        'Operations Manager',
+        'Product Manager',
+        'Customer Support Lead',
+        'Patient Relations Executive',
+        'Service Delivery Executive',
+        'Data Management Executive',
+      ],
+    },
+    {
+      department: 'Sales & Marketing Team',
+      roles: [
+        'Head of Sales',
+        'Business Development Manager',
+        'Digital Marketing Manager',
+        'Content & Social Media Executive',
+        'Partnerships Manager',
+      ],
+    },
+    {
+      department: 'Finance & Accounts Team',
+      roles: [
+        'Finance Manager',
+        'Accountant',
+        'Billing Executive',
+        'IT & Compliance Executive',
+      ],
+    },
+    {
+      department: 'HR & Admin Team',
+      roles: [
+        'HR Manager',
+        'Recruitment Executive',
+        'Admin Executive',
+        'Office Assistant',
+      ],
+    },
+    {
+      department: 'Executive Leadership',
+      roles: [
+        'Chief Technology Officer (CTO)',
+        'Chief Operating Officer (COO)',
+        'Chief Financial Officer (CFO)',
+        'Chief Medical Officer (CMO)',
+        'Chief People Officer (CHRO)',
+        'Chief Business Officer (CBO)',
+      ],
+    },
+    {
+      department: 'Other Roles',
+      roles: [
+        'Other / Multidisciplinary Role',
+      ],
+    },
   ];
 
   const handleInputChange = (
@@ -115,7 +189,11 @@ export const Careers: React.FC<CareersProps> = ({ onOpenPrivacy }) => {
     }
     if (!formData.phone.trim()) errors.phone = 'Please enter your phone number.';
     if (!formData.location.trim()) errors.location = 'Please enter your current location.';
-    if (!formData.domain.trim()) errors.domain = 'Please select your area of interest.';
+    if (!formData.domain.trim()) {
+      errors.domain = 'Please select your area of interest.';
+    } else if (isOtherDomain && !customDomain.trim()) {
+      errors.customDomain = 'Please specify the position you are applying for.';
+    }
     if (!formData.message.trim()) errors.message = 'Please provide a brief introduction or note.';
     if (!formData.consent) errors.consent = 'You must acknowledge the privacy notice to proceed.';
 
@@ -131,11 +209,16 @@ export const Careers: React.FC<CareersProps> = ({ onOpenPrivacy }) => {
     setSubmitResult(null);
 
     try {
-      const result = await submitCareerApplication(formData);
+      const payload: CareerApplicationData = {
+        ...formData,
+        domain: isOtherDomain && customDomain.trim() ? `Other: ${customDomain.trim()}` : formData.domain,
+      };
+
+      const result = await submitCareerApplication(payload);
       setSubmitResult(result);
 
       if (result.success) {
-        // Clear sensitive inputs
+        // Clear inputs
         setFormData({
           fullName: '',
           email: '',
@@ -149,6 +232,7 @@ export const Careers: React.FC<CareersProps> = ({ onOpenPrivacy }) => {
           consent: false,
           honeypot: '',
         });
+        setCustomDomain('');
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     } catch {
@@ -362,16 +446,53 @@ export const Careers: React.FC<CareersProps> = ({ onOpenPrivacy }) => {
                   }`}
                 >
                   <option value="" disabled className="text-gray-500">
-                    Select your domain...
+                    Select a position or professional domain...
                   </option>
-                  {domains.map(d => (
-                    <option key={d} value={d} className="bg-[#202329] text-white">
-                      {d}
-                    </option>
+                  {roleGroups.map(group => (
+                    <optgroup key={group.department} label={`— ${group.department} —`} className="bg-[#14161b] text-sky-400 font-semibold py-1">
+                      {group.roles.map(role => (
+                        <option key={role} value={role} className="bg-[#202329] text-white font-normal pl-4">
+                          {role}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
                 {formErrors.domain && (
                   <p className="text-xs text-rose-400 mt-1.5">{formErrors.domain}</p>
+                )}
+
+                {/* Dynamic custom position text box when "Other / Multidisciplinary Role" is selected */}
+                {isOtherDomain && (
+                  <div className="mt-4 pt-4 border-t border-white/10 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <label htmlFor="careers-customDomain" className="block text-xs font-semibold uppercase tracking-wider text-sky-400 mb-2">
+                      Please Specify Your Position / Role <span className="text-sky-400">*</span>
+                    </label>
+                    <input
+                      id="careers-customDomain"
+                      type="text"
+                      name="customDomain"
+                      value={customDomain}
+                      onChange={(e) => {
+                        setCustomDomain(e.target.value);
+                        if (formErrors.customDomain) {
+                          setFormErrors(prev => {
+                            const next = { ...prev };
+                            delete next.customDomain;
+                            return next;
+                          });
+                        }
+                      }}
+                      placeholder="e.g. Clinical Pharmacologist, Bio-informatics Specialist, Regulatory Affairs..."
+                      className={`w-full px-4 py-3 rounded-xl bg-white/5 border text-white placeholder-[#747982] focus:outline-none focus:ring-2 focus:ring-sky-400 text-sm transition-colors ${
+                        formErrors.customDomain ? 'border-rose-500 ring-1 ring-rose-500' : 'border-white/10'
+                      }`}
+                      autoFocus
+                    />
+                    {formErrors.customDomain && (
+                      <p className="text-xs text-rose-400 mt-1.5">{formErrors.customDomain}</p>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -545,13 +666,14 @@ export const Careers: React.FC<CareersProps> = ({ onOpenPrivacy }) => {
 
             {/* Direct Email Backup Notice */}
             <div className="mt-8 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#747982]">
-              <span>Prefer email directly? Reach our talent team:</span>
+              <span>Prefer to email directly? Click to open mailbox:</span>
               <a
-                href={`mailto:${siteConfig.emails.careers}`}
-                className="text-sky-400 hover:text-sky-300 font-mono flex items-center gap-1"
+                href={`mailto:${siteConfig.emails.careers}?subject=Application%20for%20Setu247%20-%20Talent%20Team&body=Hi%20Setu247%20Talent%20Team%2C%0A%0AI%20am%20interested%20in%20opportunities%20at%20Setu247.%0A%0AName%3A%20%0ALocation%3A%20%0ADomain%20%2F%20Role%3A%20%0ALinkedIn%20%2F%20Portfolio%3A%20%0A%0APlease%20find%20attached%20my%20resume.%0A%0ABest%20regards%2C`}
+                className="group/mail inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 hover:text-sky-300 font-mono transition-all border border-sky-400/20 hover:border-sky-400/40"
+                title="Click to open your mail application"
               >
                 <span>{siteConfig.emails.careers}</span>
-                <ArrowRight className="w-3 h-3" />
+                <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover/mail:translate-x-0.5" />
               </a>
             </div>
 

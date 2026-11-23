@@ -108,23 +108,84 @@ export const submitCareerApplication = async (data: CareerApplicationData): Prom
 
   if (endpoint) {
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+      let response: Response;
+
+      if (endpoint.includes('formsubmit.co')) {
+        const formDataObj = new FormData();
+        formDataObj.append('_subject', `Setu247 Job Application: ${data.fullName} — ${data.domain}`);
+        formDataObj.append('_template', 'table');
+        formDataObj.append('_captcha', 'false');
+        formDataObj.append('_replyto', data.email);
+        formDataObj.append('Applicant Full Name', data.fullName);
+        formDataObj.append('Applicant Email', data.email);
+        formDataObj.append('Applicant Phone', data.phone);
+        formDataObj.append('Current Location', data.location);
+        formDataObj.append('Position / Domain', data.domain);
+        formDataObj.append('LinkedIn Profile', data.linkedIn || 'Not provided');
+        formDataObj.append('Portfolio / Website', data.portfolio || 'Not provided');
+        formDataObj.append('Short Introduction / Message', data.message);
+        formDataObj.append('Application Reference', referenceId);
+        formDataObj.append('Submitted Date', new Date().toLocaleString());
+
+        if (data.resumeFile) {
+          formDataObj.append('Resume Attachment', data.resumeFile);
+        }
+
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+          },
+          body: formDataObj,
+        });
+      } else {
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+      }
 
       if (!response.ok) {
         throw new Error(`Server returned status ${response.status}`);
       }
 
+      let responseData: Record<string, unknown> | null = null;
+      try {
+        responseData = await response.json();
+      } catch {
+        // non-json response
+      }
+
+      // Check if FormSubmit returned an activation required notice
+      if (responseData && (responseData.success === 'false' || responseData.success === false)) {
+        const msg = String(responseData.message || '');
+        if (msg.toLowerCase().includes('activation') || msg.toLowerCase().includes('activate')) {
+          return {
+            success: true,
+            referenceId,
+            message: `One-Time Setup: An activation link has been sent to ${siteConfig.emails.careers}. Please open your Gmail and click 'Activate Form' once to enable instant email delivery for all future applications.`,
+          };
+        }
+      }
+
+      // Also store local audit backup
+      try {
+        const key = 'setu247_talent_submissions';
+        const existing = JSON.parse(localStorage.getItem(key) || '[]');
+        existing.push({ ...payload, resumeBase64: payload.resumeBase64 ? '[Captured file data]' : undefined });
+        localStorage.setItem(key, JSON.stringify(existing));
+      } catch {
+        // quota fallback
+      }
+
       return {
         success: true,
         referenceId,
-        message: 'Thank you for your interest in Setu247. Your application has been received. Our team will review it and reach out if there is a suitable opportunity.',
+        message: 'Thank you for your interest in Setu247. Your application has been received and delivered directly to the Oxysquad hiring desk.',
       };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Network error';
@@ -133,27 +194,6 @@ export const submitCareerApplication = async (data: CareerApplicationData): Prom
         message: `Submission failed: ${msg}. Alternatively, you may reach out directly to ${siteConfig.emails.careers}.`,
       };
     }
-  }
-
-  // Fallback: Local Secure Storage Queue for Development / Initial Launch verification
-  if (siteConfig.formService.enableMockStorage) {
-    await new Promise(resolve => setTimeout(resolve, 800)); // Realistic network latency
-    try {
-      const key = 'setu247_talent_submissions';
-      const existing = JSON.parse(localStorage.getItem(key) || '[]');
-      // Don't store oversized base64 in localStorage to preserve quota
-      const record = { ...payload, resumeBase64: payload.resumeBase64 ? '[Captured file data]' : undefined };
-      existing.push(record);
-      localStorage.setItem(key, JSON.stringify(existing));
-    } catch {
-      // Storage quota exceeded or disabled
-    }
-
-    return {
-      success: true,
-      referenceId,
-      message: 'Thank you for your interest in Setu247. Your application has been received. Our team will review it and reach out if there is a suitable opportunity.',
-    };
   }
 
   return {
@@ -183,23 +223,78 @@ export const submitInvestorEnquiry = async (data: InvestorEnquiryData): Promise<
 
   if (endpoint) {
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+      let response: Response;
+
+      if (endpoint.includes('formsubmit.co')) {
+        const formDataObj = new FormData();
+        formDataObj.append('_subject', `Setu247 Investor Dialogue: ${data.fullName} (${data.organisation})`);
+        formDataObj.append('_template', 'table');
+        formDataObj.append('_captcha', 'false');
+        formDataObj.append('_replyto', data.workEmail);
+        formDataObj.append('_cc', 'Oxysquadtechnologies@gmail.com');
+        formDataObj.append('Full Name', data.fullName);
+        formDataObj.append('Organisation / Fund', data.organisation);
+        formDataObj.append('Work Email', data.workEmail);
+        formDataObj.append('Phone Number', data.phone || 'Not provided');
+        formDataObj.append('Investor Type', data.investorType);
+        formDataObj.append('Investment Interest / Message', data.message);
+        formDataObj.append('Reference Code', referenceId);
+        formDataObj.append('Submitted Date', new Date().toLocaleString());
+
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+          },
+          body: formDataObj,
+        });
+      } else {
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+      }
 
       if (!response.ok) {
         throw new Error(`Server returned status ${response.status}`);
       }
 
+      let responseData: Record<string, unknown> | null = null;
+      try {
+        responseData = await response.json();
+      } catch {
+        // non-json response
+      }
+
+      if (responseData && (responseData.success === 'false' || responseData.success === false)) {
+        const msg = String(responseData.message || '');
+        if (msg.toLowerCase().includes('activation') || msg.toLowerCase().includes('activate')) {
+          return {
+            success: true,
+            referenceId,
+            message: `One-Time Setup: An activation link has been sent to ${siteConfig.emails.investors}. Please click 'Activate Form' once to enable instant email delivery for all future investor enquiries.`,
+          };
+        }
+      }
+
+      // Local storage audit
+      try {
+        const key = 'setu247_investor_submissions';
+        const existing = JSON.parse(localStorage.getItem(key) || '[]');
+        existing.push(payload);
+        localStorage.setItem(key, JSON.stringify(existing));
+      } catch {
+        // Ignore
+      }
+
       return {
         success: true,
         referenceId,
-        message: 'Thank you for your interest in Setu247. Your enquiry has been received. Our team will get in touch if there is a potential opportunity to connect.',
+        message: 'Thank you for your interest in Setu247. Your enquiry has been received and delivered directly to our investor desk.',
       };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Network error';
@@ -208,25 +303,6 @@ export const submitInvestorEnquiry = async (data: InvestorEnquiryData): Promise<
         message: `Enquiry submission failed: ${msg}. You may write confidentially to ${siteConfig.emails.investors}.`,
       };
     }
-  }
-
-  // Local storage queue fallback
-  if (siteConfig.formService.enableMockStorage) {
-    await new Promise(resolve => setTimeout(resolve, 750));
-    try {
-      const key = 'setu247_investor_submissions';
-      const existing = JSON.parse(localStorage.getItem(key) || '[]');
-      existing.push(payload);
-      localStorage.setItem(key, JSON.stringify(existing));
-    } catch {
-      // Ignore
-    }
-
-    return {
-      success: true,
-      referenceId,
-      message: 'Thank you for your interest in Setu247. Your enquiry has been received. Our team will get in touch if there is a potential opportunity to connect.',
-    };
   }
 
   return {

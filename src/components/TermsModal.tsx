@@ -107,7 +107,7 @@ export const TermsModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
           </div>
 
           <p className="text-[11px] text-[#747982] pt-4 border-t border-white/10">
-            For inquiries regarding terms, contact: <span className="font-mono text-sky-400">{siteConfig.emails.contact}</span>
+            For inquiries regarding terms, contact: <a href={`mailto:${siteConfig.emails.contact}?subject=Terms%20Inquiry%20-%20Setu247`} className="font-mono text-sky-400 hover:text-sky-300 underline underline-offset-2" title="Click to email">{siteConfig.emails.contact}</a>
           </p>
         </div>
 

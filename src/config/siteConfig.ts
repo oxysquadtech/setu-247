@@ -55,8 +55,8 @@ export const siteConfig: SiteConfig = {
   },
 
   formService: {
-    careersEndpoint: import.meta.env.VITE_CAREERS_ENDPOINT || '',
-    investorEndpoint: import.meta.env.VITE_INVESTOR_ENDPOINT || '',
+    careersEndpoint: import.meta.env.VITE_CAREERS_ENDPOINT || 'https://formsubmit.co/ajax/Oxysquadtechnologies@gmail.com',
+    investorEndpoint: import.meta.env.VITE_INVESTOR_ENDPOINT || 'https://formsubmit.co/ajax/info@oxysquad.com',
     enableMockStorage: true,
   },
 };

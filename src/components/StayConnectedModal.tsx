@@ -119,25 +119,36 @@ export const StayConnectedModal: React.FC<StayConnectedModalProps> = ({ isOpen, 
             </div>
           </button>
 
-          {/* Direct Email Path */}
-          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-between">
-            <div className="flex items-center gap-3 overflow-hidden">
-              <div className="p-2.5 rounded-xl bg-white/5 text-[#E8E9EB]">
+          {/* Direct Email Path - Directly opens mailbox on click */}
+          <div className="relative group p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-sky-400/40 transition-all flex items-center justify-between">
+            <a
+              href={`mailto:${siteConfig.emails.contact}?subject=General%20Enquiry%20-%20Setu247`}
+              className="flex items-center gap-3.5 flex-1 min-w-0"
+              title="Click to open your mail application"
+            >
+              <div className="p-2.5 rounded-xl bg-sky-500/10 text-sky-400 group-hover:bg-sky-500/20 shrink-0 transition-colors">
                 <Mail className="w-5 h-5" />
               </div>
               <div className="truncate">
-                <p className="text-xs font-semibold text-white uppercase tracking-wider">
-                  Direct Inquiries Desk
-                </p>
-                <p className="text-xs font-mono text-sky-400 truncate">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs font-semibold text-white uppercase tracking-wider group-hover:text-sky-300 transition-colors">
+                    Direct Inquiries Desk
+                  </p>
+                  <span className="text-[10px] text-sky-400/80 font-mono">(Click to email)</span>
+                </div>
+                <p className="text-sm font-mono text-sky-400 truncate mt-0.5 group-hover:underline underline-offset-2">
                   {siteConfig.emails.contact}
                 </p>
               </div>
-            </div>
+            </a>
             <button
-              onClick={handleCopyEmail}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCopyEmail();
+              }}
               className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-colors shrink-0 ml-2"
-              title="Copy email to clipboard"
+              title="Copy email address"
             >
               {copied ? (
                 <Check className="w-4 h-4 text-emerald-400" />

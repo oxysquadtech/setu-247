@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrandLogo } from './BrandLogo';
 import { siteConfig } from '../config/siteConfig';
-import { Mail, ArrowUp } from 'lucide-react';
+import { Mail, ArrowUp, ArrowUpRight } from 'lucide-react';
 import { OxysquadLink } from './OxysquadLink';
 
 interface FooterProps {
@@ -52,14 +52,18 @@ export const Footer: React.FC<FooterProps> = ({ onOpenPrivacy, onOpenTerms }) =>
             </p>
 
             {/* Direct Contact Email */}
-            <div className="pt-2 flex items-center gap-2 text-xs">
-              <Mail className="w-4 h-4 text-sky-400" />
-              <span className="text-[#747982]">General Enquiries:</span>
+            <div className="pt-2">
               <a
-                href={`mailto:${siteConfig.emails.contact}`}
-                className="text-[#E8E9EB] hover:text-sky-400 transition-colors font-mono"
+                href={`mailto:${siteConfig.emails.contact}?subject=General%20Enquiry%20-%20Setu247`}
+                className="group/mail inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-sky-500/10 border border-white/10 hover:border-sky-400/40 text-xs text-[#E8E9EB] hover:text-white transition-all shadow-sm"
+                title="Click to open your mail application"
               >
-                {siteConfig.emails.contact}
+                <Mail className="w-4 h-4 text-sky-400 group-hover/mail:scale-110 transition-transform" />
+                <span className="text-[#747982] group-hover/mail:text-[#E8E9EB]">General Enquiries:</span>
+                <span className="font-mono text-sky-400 group-hover/mail:underline underline-offset-2">
+                  {siteConfig.emails.contact}
+                </span>
+                <ArrowUpRight className="w-3.5 h-3.5 text-sky-400/70 group-hover/mail:translate-x-0.5 group-hover/mail:-translate-y-0.5 transition-transform" />
               </a>
             </div>
           </div>
