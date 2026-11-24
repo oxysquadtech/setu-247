@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { 
   Building2, 
   CheckCircle2, 
@@ -7,20 +7,15 @@ import {
   Send, 
   ShieldCheck,
   Lock,
-  ArrowRight,
-  UploadCloud,
-  FileText,
-  X
+  ArrowRight
 } from 'lucide-react';
 import { 
   InvestorEnquiryData, 
-  submitInvestorEnquiry,
-  validateProposalFile
+  submitInvestorEnquiry
 } from '../services/formService';
 import { siteConfig } from '../config/siteConfig';
 
 export const Investors: React.FC = () => {
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [formData, setFormData] = useState<InvestorEnquiryData>({
     fullName: '',
     organisation: '',
@@ -29,7 +24,6 @@ export const Investors: React.FC = () => {
     investorType: '',
     investmentAmount: '',
     message: '',
-    proposalFile: null,
     honeypot: '',
   });
 
@@ -62,31 +56,6 @@ export const Investors: React.FC = () => {
         delete next[name];
         return next;
       });
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const validation = validateProposalFile(file);
-    if (!validation.valid) {
-      setFormErrors(prev => ({ ...prev, proposal: validation.error || 'Invalid file' }));
-      return;
-    }
-
-    setFormData(prev => ({ ...prev, proposalFile: file }));
-    setFormErrors(prev => {
-      const next = { ...prev };
-      delete next.proposal;
-      return next;
-    });
-  };
-
-  const removeFile = () => {
-    setFormData(prev => ({ ...prev, proposalFile: null }));
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
     }
   };
 
@@ -127,12 +96,8 @@ export const Investors: React.FC = () => {
           investorType: '',
           investmentAmount: '',
           message: '',
-          proposalFile: null,
           honeypot: '',
         });
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
       }
     } catch {
       setSubmitResult({
@@ -367,64 +332,6 @@ export const Investors: React.FC = () => {
                     className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-[#747982] focus:outline-none focus:ring-2 focus:ring-sky-400 text-sm"
                   />
                 </div>
-              </div>
-
-              {/* Proposal / Pitch Deck Upload (Document Attachment) */}
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[#E8E9EB]/90 mb-2">
-                  Attach Business Proposal / Pitch Deck <span className="text-[#747982] font-normal lowercase">(optional, up to 25MB)</span>
-                </label>
-
-                {!formData.proposalFile ? (
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all hover:border-sky-400/50 hover:bg-white/[0.02] ${
-                      formErrors.proposal ? 'border-rose-500 bg-rose-500/5' : 'border-white/15'
-                    }`}
-                  >
-                    <UploadCloud className="w-8 h-8 text-sky-400 mx-auto mb-2" />
-                    <p className="text-sm font-medium text-white mb-1">
-                      Click to attach pitch deck, one-pager, or proposal
-                    </p>
-                    <p className="text-xs text-[#747982]">
-                      Accepts PDF, PPT, PPTX, DOC, DOCX up to 25MB. Strictly confidential.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-sky-400/30">
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <FileText className="w-6 h-6 text-sky-400 shrink-0" />
-                      <div className="truncate">
-                        <p className="text-sm font-medium text-white truncate">
-                          {formData.proposalFile.name}
-                        </p>
-                        <p className="text-xs text-[#747982]">
-                          {(formData.proposalFile.size / (1024 * 1024)).toFixed(2)} MB
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={removeFile}
-                      className="p-1.5 text-[#747982] hover:text-rose-400 rounded-lg hover:bg-white/5 transition-colors"
-                      aria-label="Remove attached document"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.doc,.docx,.ppt,.pptx"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-
-                {formErrors.proposal && (
-                  <p className="text-xs text-rose-400 mt-1.5">{formErrors.proposal}</p>
-                )}
               </div>
 
               {/* Message */}
