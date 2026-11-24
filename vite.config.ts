@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import dotenv from 'dotenv';
 import path from 'path';
+import express from 'express';
+import { apiRouter } from './server/apiRouter.js';
 
 // Load .env
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
@@ -11,15 +13,9 @@ function backendApiPlugin(): Plugin {
   return {
     name: 'backend-api-plugin',
     configureServer(server) {
-      server.middlewares.use('/api', async (req, res, next) => {
-        try {
-          const { apiRouter } = await import('./server/apiRouter.js');
-          apiRouter(req as any, res as any, next);
-        } catch (err) {
-          console.error('[API Plugin Error]', err);
-          next(err);
-        }
-      });
+      const app = express();
+      app.use('/api', apiRouter);
+      server.middlewares.use(app);
     },
   };
 }
