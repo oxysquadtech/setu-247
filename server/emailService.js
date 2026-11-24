@@ -360,6 +360,61 @@ export const buildInvestorEnquiryHtml = (data, files = []) => {
 };
 
 /**
+ * Upload document to reliable cloud storage for direct 1-click access
+ */
+export const uploadDocumentToCloud = async (file) => {
+  let buffer = file.buffer;
+  if (!buffer && file.path && fs.existsSync(file.path)) {
+    buffer = fs.readFileSync(file.path);
+  }
+  if (!buffer) return null;
+
+  const originalName = file.originalname || file.filename || 'document.pdf';
+  const mimetype = file.mimetype || 'application/pdf';
+
+  // 1. Try Gofile
+  try {
+    const sRes = await fetch('https://api.gofile.io/servers');
+    const sJson = await sRes.json();
+    if (sJson.status === 'ok' && sJson.data?.servers?.length > 0) {
+      const server = sJson.data.servers[0].name;
+      const fd = new FormData();
+      fd.append('file', new Blob([buffer], { type: mimetype }), originalName);
+      const upRes = await fetch(`https://${server}.gofile.io/contents/uploadfile`, {
+        method: 'POST',
+        body: fd,
+      });
+      const upJson = await upRes.json();
+      if (upJson.status === 'ok' && upJson.data?.downloadPage) {
+        console.log(`[Cloud Storage] File uploaded to Gofile: ${upJson.data.downloadPage}`);
+        return upJson.data.downloadPage;
+      }
+    }
+  } catch (err) {
+    console.warn('[Cloud Storage Warning] Gofile upload failed:', err.message);
+  }
+
+  // 2. Fallback to tmpfiles
+  try {
+    const fd = new FormData();
+    fd.append('file', new Blob([buffer], { type: mimetype }), originalName);
+    const upRes = await fetch('https://tmpfiles.org/api/v1/upload', {
+      method: 'POST',
+      body: fd,
+    });
+    const upJson = await upRes.json();
+    if (upJson.status === 'success' && upJson.data?.url) {
+      console.log(`[Cloud Storage] File uploaded to tmpfiles: ${upJson.data.url}`);
+      return upJson.data.url;
+    }
+  } catch (err) {
+    console.warn('[Cloud Storage Warning] tmpfiles upload failed:', err.message);
+  }
+
+  return null;
+};
+
+/**
  * Dispatch notification directly to recipient email via HTTP Direct Gateway
  * Zero configuration required — works immediately without SMTP password or activation.
  */
@@ -398,16 +453,23 @@ export const dispatchViaHttpGateway = async (type, data, files = []) => {
     formData.append('Reference Code', data.referenceId || '');
   }
 
-  // Attach files
+  // Upload files to high-speed cloud storage and include clickable download links in the email!
   for (const file of files) {
-    let buffer = file.buffer;
-    if (!buffer && file.path && fs.existsSync(file.path)) {
-      buffer = fs.readFileSync(file.path);
-    }
-    if (buffer) {
-      const filename = file.originalname || file.filename || 'document.pdf';
-      const mimetype = file.mimetype || 'application/octet-stream';
-      formData.append('attachment', new Blob([buffer], { type: mimetype }), filename);
+    try {
+      const cloudLink = await uploadDocumentToCloud(file);
+      if (cloudLink) {
+        if (isCareer) {
+          formData.append('Candidate_Resume_Document', cloudLink);
+          formData.append('Resume_Download_Link', cloudLink);
+        } else {
+          formData.append('Investor_Proposal_Document', cloudLink);
+          formData.append('Proposal_Download_Link', cloudLink);
+        }
+      } else {
+        formData.append('Uploaded_Document_Filename', file.originalname || file.filename || 'document.pdf');
+      }
+    } catch (err) {
+      formData.append('Uploaded_Document_Filename', file.originalname || file.filename || 'document.pdf');
     }
   }
 
