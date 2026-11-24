@@ -114,6 +114,10 @@ export const submitCareerApplication = async (data: CareerApplicationData): Prom
     return { success: false, message: 'Please consent to the privacy policy to proceed.' };
   }
 
+  if (!data.resumeFile) {
+    return { success: false, message: 'Resume upload is compulsory. Please attach your resume or CV.' };
+  }
+
   const endpoint = siteConfig.formService.careersEndpoint || '/api/careers';
   const referenceId = `SETU-TALENT-${Date.now().toString(36).toUpperCase()}`;
 

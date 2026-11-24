@@ -139,7 +139,10 @@ export const Careers: React.FC<CareersProps> = ({ onOpenPrivacy }) => {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value, type } = e.target;
-    if (type === 'checkbox') {
+    if (name === 'phone') {
+      const cleanDigits = value.replace(/\D/g, '').slice(0, 10);
+      setFormData(prev => ({ ...prev, phone: cleanDigits }));
+    } else if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
       setFormData(prev => ({ ...prev, [name]: checked }));
     } else {
@@ -189,12 +192,19 @@ export const Careers: React.FC<CareersProps> = ({ onOpenPrivacy }) => {
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errors.email = 'Please enter a valid email address.';
     }
-    if (!formData.phone.trim()) errors.phone = 'Please enter your phone number.';
+    if (!formData.phone.trim()) {
+      errors.phone = 'Please enter your 10-digit mobile number.';
+    } else if (formData.phone.trim().length !== 10) {
+      errors.phone = 'Mobile number must be exactly 10 digits.';
+    }
     if (!formData.location.trim()) errors.location = 'Please enter your current location.';
     if (!formData.domain.trim()) {
       errors.domain = 'Please select your area of interest.';
     } else if (isOtherDomain && !customDomain.trim()) {
       errors.customDomain = 'Please specify the position you are applying for.';
+    }
+    if (!formData.resumeFile) {
+      errors.resume = 'Resume upload is compulsory. Please attach your resume or CV (PDF/DOC/DOCX).';
     }
     if (!formData.message.trim()) errors.message = 'Please provide a brief introduction or note.';
     if (!formData.consent) errors.consent = 'You must acknowledge the privacy notice to proceed.';
@@ -396,15 +406,17 @@ export const Careers: React.FC<CareersProps> = ({ onOpenPrivacy }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="careers-phone" className="block text-xs font-semibold uppercase tracking-wider text-[#E8E9EB]/90 mb-2">
-                    Phone Number <span className="text-sky-400">*</span>
+                    Mobile Number <span className="text-sky-400">*</span> <span className="text-[#747982] font-normal lowercase">(10 digits)</span>
                   </label>
                   <input
                     id="careers-phone"
                     type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    placeholder="+91 98765 43210"
+                    placeholder="e.g. 9876543210"
                     className={`w-full px-4 py-3 rounded-xl bg-white/5 border text-white placeholder-[#747982] focus:outline-none focus:ring-2 focus:ring-sky-400 text-sm transition-colors ${
                       formErrors.phone ? 'border-rose-500 ring-1 ring-rose-500' : 'border-white/10'
                     }`}
@@ -569,22 +581,22 @@ export const Careers: React.FC<CareersProps> = ({ onOpenPrivacy }) => {
               {/* Row 5: Resume Upload */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#E8E9EB]/90 mb-2">
-                  Resume Upload <span className="text-[#747982] font-normal lowercase">(PDF preferred, up to 5MB)</span>
+                  Resume / CV Upload <span className="text-sky-400">*</span> <span className="text-rose-400 font-semibold lowercase">(compulsory, up to 25MB)</span>
                 </label>
 
                 {!formData.resumeFile ? (
                   <div
                     onClick={() => fileInputRef.current?.click()}
                     className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all hover:border-sky-400/50 hover:bg-white/[0.02] ${
-                      formErrors.resume ? 'border-rose-500 bg-rose-500/5' : 'border-white/15'
+                      formErrors.resume ? 'border-rose-500 bg-rose-500/10 ring-1 ring-rose-500' : 'border-white/15'
                     }`}
                   >
                     <UploadCloud className="w-8 h-8 text-sky-400 mx-auto mb-2" />
                     <p className="text-sm font-medium text-white mb-1">
-                      Click to browse or drop your resume here
+                      Click to browse or drop your resume here <span className="text-rose-400">*</span>
                     </p>
                     <p className="text-xs text-[#747982]">
-                      Accepts PDF, DOC, DOCX up to 5MB. Handled with confidentiality.
+                      Compulsory. Accepts PDF, DOC, DOCX up to 25MB. Handled with confidentiality.
                     </p>
                   </div>
                 ) : (

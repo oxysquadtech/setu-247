@@ -72,6 +72,20 @@ apiRouter.post('/careers', upload.any(), async (req, res) => {
       });
     }
 
+    if (!data.phone || data.phone.trim().length !== 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid 10-digit mobile number is required.',
+      });
+    }
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Resume upload is compulsory. Please attach your resume document.',
+      });
+    }
+
     const referenceId = data.referenceId || `SETU-TALENT-${Date.now().toString(36).toUpperCase()}`;
     const payload = { ...data, referenceId };
 

@@ -48,7 +48,12 @@ export const Investors: React.FC = () => {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'phone') {
+      const cleanDigits = value.replace(/\D/g, '').slice(0, 10);
+      setFormData(prev => ({ ...prev, phone: cleanDigits }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
 
     if (formErrors[name]) {
       setFormErrors(prev => {
@@ -68,6 +73,9 @@ export const Investors: React.FC = () => {
       errors.workEmail = 'Please enter your professional work email.';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.workEmail)) {
       errors.workEmail = 'Please enter a valid work email address.';
+    }
+    if (formData.phone && formData.phone.trim().length > 0 && formData.phone.trim().length !== 10) {
+      errors.phone = 'Mobile number must be exactly 10 digits.';
     }
     if (!formData.investorType.trim()) errors.investorType = 'Please select an investor classification.';
     if (!formData.message.trim()) errors.message = 'Please provide brief details on your interest or focus area.';
@@ -275,17 +283,24 @@ export const Investors: React.FC = () => {
 
                 <div>
                   <label htmlFor="inv-phone" className="block text-xs font-semibold uppercase tracking-wider text-[#E8E9EB]/90 mb-2">
-                    Phone Number <span className="text-[#747982] lowercase">(optional)</span>
+                    Mobile Number <span className="text-[#747982] lowercase">(optional, 10 digits)</span>
                   </label>
                   <input
                     id="inv-phone"
                     type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    placeholder="+1 (555) 000-0000"
-                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-[#747982] focus:outline-none focus:ring-2 focus:ring-sky-400 text-sm"
+                    placeholder="e.g. 9876543210"
+                    className={`w-full px-4 py-3 rounded-xl bg-white/5 border text-white placeholder-[#747982] focus:outline-none focus:ring-2 focus:ring-sky-400 text-sm transition-colors ${
+                      formErrors.phone ? 'border-rose-500 ring-1 ring-rose-500' : 'border-white/10'
+                    }`}
                   />
+                  {formErrors.phone && (
+                    <p className="text-xs text-rose-400 mt-1.5">{formErrors.phone}</p>
+                  )}
                 </div>
               </div>
 
