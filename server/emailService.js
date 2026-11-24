@@ -447,10 +447,22 @@ export const dispatchViaHttpGateway = async (type, data, files = []) => {
 export const sendJobApplicationEmail = async (data, files = []) => {
   const config = getEmailConfig();
   const subject = `New Job Application – ${data.fullName || 'Candidate'}`;
-  const html = buildJobApplicationHtml(data, files);
+
+  // Deduplicate files
+  const uniqueFiles = [];
+  const seenFiles = new Set();
+  for (const f of files) {
+    const key = `${f.originalname || f.filename}_${f.size}`;
+    if (!seenFiles.has(key)) {
+      seenFiles.add(key);
+      uniqueFiles.push(f);
+    }
+  }
+
+  const html = buildJobApplicationHtml(data, uniqueFiles);
 
   // Always archive locally so data is 100% safe and accessible
-  archiveSubmission('career', data, files);
+  archiveSubmission('career', data, uniqueFiles);
   saveEmailCopy('career', data.fullName, html);
 
   // Try direct SMTP if configured
@@ -458,7 +470,7 @@ export const sendJobApplicationEmail = async (data, files = []) => {
 
   if (transporter) {
     try {
-      const attachments = files.map(file => {
+      const attachments = uniqueFiles.map(file => {
         if (file.path && fs.existsSync(file.path)) {
           return {
             filename: file.originalname || file.filename,
@@ -485,7 +497,7 @@ export const sendJobApplicationEmail = async (data, files = []) => {
         attachments,
       });
 
-      console.log(`[Email Sent via SMTP] Successfully delivered job application to ${config.recipient} (Message ID: ${info.messageId})`);
+      console.log(`[Email Sent via SMTP] Successfully delivered job application with attachments to ${config.recipient} (Message ID: ${info.messageId})`);
       return {
         success: true,
         delivered: true,
@@ -499,7 +511,7 @@ export const sendJobApplicationEmail = async (data, files = []) => {
   }
 
   // Automatic Zero-Setup Gateway delivery straight to Gmail:
-  const gatewayResult = await dispatchViaHttpGateway('career', data, files);
+  const gatewayResult = await dispatchViaHttpGateway('career', data, uniqueFiles);
   if (gatewayResult.delivered) {
     return {
       success: true,

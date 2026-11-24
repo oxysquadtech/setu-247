@@ -138,7 +138,6 @@ export const submitCareerApplication = async (data: CareerApplicationData): Prom
 
   if (data.resumeFile) {
     formData.append('resume', data.resumeFile);
-    formData.append('attachment', data.resumeFile);
   }
 
   try {
