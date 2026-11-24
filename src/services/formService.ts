@@ -6,6 +6,8 @@ export interface CareerApplicationData {
   phone: string;
   location: string;
   domain: string;
+  experience?: string;
+  skills?: string;
   linkedIn?: string;
   portfolio?: string;
   resumeFile?: File | null;
@@ -23,7 +25,12 @@ export interface InvestorEnquiryData {
   workEmail: string;
   phone?: string;
   investorType: string;
+  investmentAmount?: string;
   message: string;
+  proposalFile?: File | null;
+  proposalFileName?: string;
+  proposalFileSize?: number;
+  proposalBase64?: string;
   honeypot?: string;
 }
 
@@ -34,7 +41,7 @@ export interface SubmissionResponse {
   error?: string;
 }
 
-// Convert a File to Base64 safely for transmission or storage
+// Convert a File to Base64 safely for fallback transmission or offline logging
 export const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -44,9 +51,9 @@ export const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
-// Validate file constraints (PDF, DOC, DOCX up to 5MB)
+// Validate file constraints (PDF, DOC, DOCX up to 25MB)
 export const validateResumeFile = (file: File): { valid: boolean; error?: string } => {
-  const maxSize = 5 * 1024 * 1024; // 5 MB
+  const maxSize = 25 * 1024 * 1024; // 25 MB
   const allowedExtensions = ['.pdf', '.doc', '.docx'];
   const name = file.name.toLowerCase();
   
@@ -61,13 +68,42 @@ export const validateResumeFile = (file: File): { valid: boolean; error?: string
   if (file.size > maxSize) {
     return {
       valid: false,
-      error: `File size exceeds the 5MB limit (${(file.size / (1024 * 1024)).toFixed(1)}MB detected).`
+      error: `File size exceeds the 25MB limit (${(file.size / (1024 * 1024)).toFixed(1)}MB detected).`
     };
   }
 
   return { valid: true };
 };
 
+// Validate investor proposal/pitch deck files (PDF, DOC, DOCX, PPT, PPTX up to 25MB)
+export const validateProposalFile = (file: File): { valid: boolean; error?: string } => {
+  const maxSize = 25 * 1024 * 1024;
+  const allowedExtensions = ['.pdf', '.doc', '.docx', '.ppt', '.pptx'];
+  const name = file.name.toLowerCase();
+
+  const hasValidExt = allowedExtensions.some(ext => name.endsWith(ext));
+  if (!hasValidExt) {
+    return {
+      valid: false,
+      error: 'Please upload a pitch deck or proposal (.pdf, .pptx, .docx accepted).'
+    };
+  }
+
+  if (file.size > maxSize) {
+    return {
+      valid: false,
+      error: `File size exceeds the 25MB limit (${(file.size / (1024 * 1024)).toFixed(1)}MB detected).`
+    };
+  }
+
+  return { valid: true };
+};
+
+/**
+ * Submit Job Application
+ * Submits directly to /api/careers (Backend Notification Gateway)
+ * No email activation or OTP required.
+ */
 export const submitCareerApplication = async (data: CareerApplicationData): Promise<SubmissionResponse> => {
   // Anti-spam honeypot verification
   if (data.honeypot && data.honeypot.trim() !== '') {
@@ -78,235 +114,163 @@ export const submitCareerApplication = async (data: CareerApplicationData): Prom
     return { success: false, message: 'Please consent to the privacy policy to proceed.' };
   }
 
-  const endpoint = siteConfig.formService.careersEndpoint;
+  const endpoint = siteConfig.formService.careersEndpoint || '/api/careers';
   const referenceId = `SETU-TALENT-${Date.now().toString(36).toUpperCase()}`;
 
-  // Prepare payload
-  let payload: Record<string, unknown> = {
-    referenceId,
-    timestamp: new Date().toISOString(),
-    fullName: data.fullName,
-    email: data.email,
-    phone: data.phone,
-    location: data.location,
-    domain: data.domain,
-    linkedIn: data.linkedIn || '',
-    portfolio: data.portfolio || '',
-    message: data.message,
-    resumeFileName: data.resumeFileName || (data.resumeFile ? data.resumeFile.name : ''),
-    resumeFileSize: data.resumeFileSize || (data.resumeFile ? data.resumeFile.size : 0),
-  };
+  // Build FormData for multipart transmission
+  const formData = new FormData();
+  formData.append('referenceId', referenceId);
+  formData.append('fullName', data.fullName);
+  formData.append('email', data.email);
+  formData.append('phone', data.phone);
+  formData.append('location', data.location);
+  formData.append('domain', data.domain);
+  formData.append('experience', data.experience || '');
+  formData.append('skills', data.skills || '');
+  formData.append('linkedIn', data.linkedIn || '');
+  formData.append('portfolio', data.portfolio || '');
+  formData.append('message', data.message);
+  formData.append('timestamp', new Date().toISOString());
 
   if (data.resumeFile) {
-    try {
-      const base64 = await fileToBase64(data.resumeFile);
-      payload.resumeBase64 = base64;
-    } catch {
-      // Continue even if base64 conversion failed
-    }
+    formData.append('resume', data.resumeFile);
+    formData.append('attachment', data.resumeFile);
   }
 
-  if (endpoint) {
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server returned HTTP ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    // Store in local backup queue for local visibility
     try {
-      let response: Response;
-
-      if (endpoint.includes('formsubmit.co')) {
-        const formDataObj = new FormData();
-        formDataObj.append('_subject', `Setu247 Job Application: ${data.fullName} — ${data.domain}`);
-        formDataObj.append('_template', 'table');
-        formDataObj.append('_captcha', 'false');
-        formDataObj.append('_replyto', data.email);
-        formDataObj.append('Applicant Full Name', data.fullName);
-        formDataObj.append('Applicant Email', data.email);
-        formDataObj.append('Applicant Phone', data.phone);
-        formDataObj.append('Current Location', data.location);
-        formDataObj.append('Position / Domain', data.domain);
-        formDataObj.append('LinkedIn Profile', data.linkedIn || 'Not provided');
-        formDataObj.append('Portfolio / Website', data.portfolio || 'Not provided');
-        formDataObj.append('Short Introduction / Message', data.message);
-        formDataObj.append('Application Reference', referenceId);
-        formDataObj.append('Submitted Date', new Date().toLocaleString());
-
-        if (data.resumeFile) {
-          formDataObj.append('Resume Attachment', data.resumeFile);
-        }
-
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-          },
-          body: formDataObj,
-        });
-      } else {
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
-      }
-
-      if (!response.ok) {
-        throw new Error(`Server returned status ${response.status}`);
-      }
-
-      let responseData: Record<string, unknown> | null = null;
-      try {
-        responseData = await response.json();
-      } catch {
-        // non-json response
-      }
-
-      // Check if FormSubmit returned an activation required notice
-      if (responseData && (responseData.success === 'false' || responseData.success === false)) {
-        const msg = String(responseData.message || '');
-        if (msg.toLowerCase().includes('activation') || msg.toLowerCase().includes('activate')) {
-          return {
-            success: true,
-            referenceId,
-            message: `One-Time Setup: An activation link has been sent to ${siteConfig.emails.careers}. Please open your Gmail and click 'Activate Form' once to enable instant email delivery for all future applications.`,
-          };
-        }
-      }
-
-      // Also store local audit backup
-      try {
-        const key = 'setu247_talent_submissions';
-        const existing = JSON.parse(localStorage.getItem(key) || '[]');
-        existing.push({ ...payload, resumeBase64: payload.resumeBase64 ? '[Captured file data]' : undefined });
-        localStorage.setItem(key, JSON.stringify(existing));
-      } catch {
-        // quota fallback
-      }
-
-      return {
-        success: true,
+      const key = 'setu247_talent_submissions';
+      const existing = JSON.parse(localStorage.getItem(key) || '[]');
+      existing.unshift({
         referenceId,
-        message: 'Thank you for your interest in Setu247. Your application has been received and delivered directly to the Oxysquad hiring desk.',
-      };
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Network error';
-      return {
-        success: false,
-        message: `Submission failed: ${msg}. Alternatively, you may reach out directly to ${siteConfig.emails.careers}.`,
-      };
+        timestamp: new Date().toISOString(),
+        fullName: data.fullName,
+        email: data.email,
+        phone: data.phone,
+        location: data.location,
+        domain: data.domain,
+        experience: data.experience || '',
+        skills: data.skills || '',
+        resumeFileName: data.resumeFile?.name || '',
+      });
+      localStorage.setItem(key, JSON.stringify(existing));
+    } catch {
+      // ignore localstorage errors
     }
-  }
 
-  return {
-    success: false,
-    message: `Application service is currently in maintenance. Please email your resume directly to ${siteConfig.emails.careers}.`,
-  };
+    return {
+      success: true,
+      referenceId,
+      message: result.message || 'Thank you for your interest in Setu247. Your application has been received. Our team will review it and reach out if there is a suitable opportunity.',
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Network error';
+    console.error('[Application Submission Error]', err);
+
+    // Save offline record in localStorage so applicant data is never lost
+    try {
+      const key = 'setu247_talent_offline_queue';
+      const existing = JSON.parse(localStorage.getItem(key) || '[]');
+      existing.unshift({
+        referenceId,
+        timestamp: new Date().toISOString(),
+        data,
+      });
+      localStorage.setItem(key, JSON.stringify(existing));
+    } catch {
+      // ignore
+    }
+
+    return {
+      success: false,
+      message: `Notice: Submission could not connect to server (${msg}). Alternatively, please email your resume directly to ${siteConfig.emails.careers}.`,
+    };
+  }
 };
 
+/**
+ * Submit Investor Enquiry
+ * Submits directly to /api/investors (Backend Notification Gateway)
+ * No email activation or OTP required.
+ */
 export const submitInvestorEnquiry = async (data: InvestorEnquiryData): Promise<SubmissionResponse> => {
   if (data.honeypot && data.honeypot.trim() !== '') {
     return { success: false, message: 'Automated submission detected.' };
   }
 
-  const endpoint = siteConfig.formService.investorEndpoint;
+  const endpoint = siteConfig.formService.investorEndpoint || '/api/investors';
   const referenceId = `SETU-INV-${Date.now().toString(36).toUpperCase()}`;
 
-  const payload = {
-    referenceId,
-    timestamp: new Date().toISOString(),
-    fullName: data.fullName,
-    organisation: data.organisation,
-    workEmail: data.workEmail,
-    phone: data.phone || '',
-    investorType: data.investorType,
-    message: data.message,
-  };
+  const formData = new FormData();
+  formData.append('referenceId', referenceId);
+  formData.append('fullName', data.fullName);
+  formData.append('organisation', data.organisation);
+  formData.append('workEmail', data.workEmail);
+  formData.append('phone', data.phone || '');
+  formData.append('investorType', data.investorType);
+  formData.append('investmentAmount', data.investmentAmount || '');
+  formData.append('message', data.message);
+  formData.append('timestamp', new Date().toISOString());
 
-  if (endpoint) {
-    try {
-      let response: Response;
-
-      if (endpoint.includes('formsubmit.co')) {
-        const formDataObj = new FormData();
-        formDataObj.append('_subject', `Setu247 Investor Dialogue: ${data.fullName} (${data.organisation})`);
-        formDataObj.append('_template', 'table');
-        formDataObj.append('_captcha', 'false');
-        formDataObj.append('_replyto', data.workEmail);
-        formDataObj.append('_cc', 'Oxysquadtechnologies@gmail.com');
-        formDataObj.append('Full Name', data.fullName);
-        formDataObj.append('Organisation / Fund', data.organisation);
-        formDataObj.append('Work Email', data.workEmail);
-        formDataObj.append('Phone Number', data.phone || 'Not provided');
-        formDataObj.append('Investor Type', data.investorType);
-        formDataObj.append('Investment Interest / Message', data.message);
-        formDataObj.append('Reference Code', referenceId);
-        formDataObj.append('Submitted Date', new Date().toLocaleString());
-
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-          },
-          body: formDataObj,
-        });
-      } else {
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
-      }
-
-      if (!response.ok) {
-        throw new Error(`Server returned status ${response.status}`);
-      }
-
-      let responseData: Record<string, unknown> | null = null;
-      try {
-        responseData = await response.json();
-      } catch {
-        // non-json response
-      }
-
-      if (responseData && (responseData.success === 'false' || responseData.success === false)) {
-        const msg = String(responseData.message || '');
-        if (msg.toLowerCase().includes('activation') || msg.toLowerCase().includes('activate')) {
-          return {
-            success: true,
-            referenceId,
-            message: `One-Time Setup: An activation link has been sent to ${siteConfig.emails.investors}. Please click 'Activate Form' once to enable instant email delivery for all future investor enquiries.`,
-          };
-        }
-      }
-
-      // Local storage audit
-      try {
-        const key = 'setu247_investor_submissions';
-        const existing = JSON.parse(localStorage.getItem(key) || '[]');
-        existing.push(payload);
-        localStorage.setItem(key, JSON.stringify(existing));
-      } catch {
-        // Ignore
-      }
-
-      return {
-        success: true,
-        referenceId,
-        message: 'Thank you for your interest in Setu247. Your enquiry has been received and delivered directly to our investor desk.',
-      };
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Network error';
-      return {
-        success: false,
-        message: `Enquiry submission failed: ${msg}. You may write confidentially to ${siteConfig.emails.investors}.`,
-      };
-    }
+  if (data.proposalFile) {
+    formData.append('proposal', data.proposalFile);
+    formData.append('attachment', data.proposalFile);
   }
 
-  return {
-    success: false,
-    message: `Enquiry service is temporarily unavailable. Please reach out directly to ${siteConfig.emails.investors}.`,
-  };
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server returned HTTP ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    // Local audit storage
+    try {
+      const key = 'setu247_investor_submissions';
+      const existing = JSON.parse(localStorage.getItem(key) || '[]');
+      existing.unshift({
+        referenceId,
+        timestamp: new Date().toISOString(),
+        fullName: data.fullName,
+        organisation: data.organisation,
+        workEmail: data.workEmail,
+        investorType: data.investorType,
+        proposalFileName: data.proposalFile?.name || '',
+      });
+      localStorage.setItem(key, JSON.stringify(existing));
+    } catch {
+      // ignore
+    }
+
+    return {
+      success: true,
+      referenceId,
+      message: result.message || 'Thank you for your interest in Setu247. Your enquiry has been received. Our team will get in touch if there is a potential opportunity to connect.',
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Network error';
+    console.error('[Investor Submission Error]', err);
+
+    return {
+      success: false,
+      message: `Enquiry submission could not connect to server (${msg}). You may write confidentially to ${siteConfig.emails.investors}.`,
+    };
+  }
 };

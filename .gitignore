@@ -26,3 +26,11 @@ dist-ssr
 # Environment files
 .env
 .env.production
+.env.*.local
+
+# Server storage & uploaded documents
+server/storage/uploads/*
+!server/storage/uploads/.gitkeep
+server/storage/emails/*
+!server/storage/emails/.gitkeep
+server/storage/submissions.json

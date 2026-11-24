@@ -32,6 +32,8 @@ export const Careers: React.FC<CareersProps> = ({ onOpenPrivacy }) => {
     phone: '',
     location: '',
     domain: '',
+    experience: '',
+    skills: '',
     linkedIn: '',
     portfolio: '',
     resumeFile: null,
@@ -225,6 +227,8 @@ export const Careers: React.FC<CareersProps> = ({ onOpenPrivacy }) => {
           phone: '',
           location: '',
           domain: '',
+          experience: '',
+          skills: '',
           linkedIn: '',
           portfolio: '',
           resumeFile: null,
@@ -494,6 +498,39 @@ export const Careers: React.FC<CareersProps> = ({ onOpenPrivacy }) => {
                     )}
                   </div>
                 )}
+              </div>
+
+              {/* Row: Experience & Key Skills */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="careers-experience" className="block text-xs font-semibold uppercase tracking-wider text-[#E8E9EB]/90 mb-2">
+                    Experience Level / Years <span className="text-[#747982] lowercase">(optional)</span>
+                  </label>
+                  <input
+                    id="careers-experience"
+                    type="text"
+                    name="experience"
+                    value={formData.experience || ''}
+                    onChange={handleInputChange}
+                    placeholder="e.g. 3+ Years, Fresher, Lead"
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-[#747982] focus:outline-none focus:ring-2 focus:ring-sky-400 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="careers-skills" className="block text-xs font-semibold uppercase tracking-wider text-[#E8E9EB]/90 mb-2">
+                    Key Skills &amp; Competencies <span className="text-[#747982] lowercase">(optional)</span>
+                  </label>
+                  <input
+                    id="careers-skills"
+                    type="text"
+                    name="skills"
+                    value={formData.skills || ''}
+                    onChange={handleInputChange}
+                    placeholder="e.g. React, Node.js, Clinical Tech, Python"
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-[#747982] focus:outline-none focus:ring-2 focus:ring-sky-400 text-sm"
+                  />
+                </div>
               </div>
 
               {/* Row 4: LinkedIn & Portfolio (Optional) */}
