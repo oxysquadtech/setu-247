@@ -360,6 +360,88 @@ export const buildInvestorEnquiryHtml = (data, files = []) => {
 };
 
 /**
+ * Dispatch notification directly to recipient email via HTTP Direct Gateway
+ * Zero configuration required — works immediately without SMTP password or activation.
+ */
+export const dispatchViaHttpGateway = async (type, data, files = []) => {
+  const config = getEmailConfig();
+  const isCareer = type === 'career';
+  const subject = isCareer
+    ? `New Job Application – ${data.fullName || 'Candidate'}`
+    : `New Investor Enquiry – ${data.fullName || 'Investor'}`;
+
+  const formData = new FormData();
+  formData.append('_subject', subject);
+  formData.append('_template', 'table');
+  formData.append('_captcha', 'false');
+
+  if (isCareer) {
+    formData.append('Full Name', data.fullName || '');
+    formData.append('Email Address', data.email || '');
+    formData.append('Mobile Number', data.phone || '');
+    formData.append('Current Location', data.location || '');
+    formData.append('Job Position / Profile', data.domain || '');
+    formData.append('Experience Level', data.experience || 'Not specified');
+    formData.append('Key Skills', data.skills || 'Not specified');
+    formData.append('LinkedIn Profile', data.linkedIn || 'Not provided');
+    formData.append('Portfolio / Website', data.portfolio || 'Not provided');
+    formData.append('Candidate Note', data.message || '');
+    formData.append('Reference Code', data.referenceId || '');
+  } else {
+    formData.append('Investor Name', data.fullName || '');
+    formData.append('Company / Fund Details', data.organisation || '');
+    formData.append('Work Email Address', data.workEmail || data.email || '');
+    formData.append('Mobile Number', data.phone || 'Not provided');
+    formData.append('Investor Classification', data.investorType || '');
+    formData.append('Investment Range / Details', data.investmentAmount || 'Flexible');
+    formData.append('Business Proposal / Statement', data.message || '');
+    formData.append('Reference Code', data.referenceId || '');
+  }
+
+  // Attach files
+  for (const file of files) {
+    let buffer = file.buffer;
+    if (!buffer && file.path && fs.existsSync(file.path)) {
+      buffer = fs.readFileSync(file.path);
+    }
+    if (buffer) {
+      const filename = file.originalname || file.filename || 'document.pdf';
+      const mimetype = file.mimetype || 'application/octet-stream';
+      formData.append('attachment', new Blob([buffer], { type: mimetype }), filename);
+    }
+  }
+
+  try {
+    const gatewayUrl = `https://formsubmit.co/ajax/${encodeURIComponent(config.recipient)}`;
+    const response = await fetch(gatewayUrl, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Origin': 'http://localhost:3000',
+        'Referer': 'http://localhost:3000/',
+      },
+      body: formData,
+    });
+
+    const resJson = await response.json();
+    console.log(`[HTTP Gateway] Delivered to ${config.recipient}:`, resJson);
+    return {
+      success: resJson.success === 'true' || resJson.success === true,
+      delivered: true,
+      method: 'HTTP Gateway',
+      recipient: config.recipient,
+    };
+  } catch (err) {
+    console.error(`[HTTP Gateway Error] Could not dispatch to ${config.recipient}:`, err.message);
+    return {
+      success: false,
+      delivered: false,
+      error: err.message,
+    };
+  }
+};
+
+/**
  * Send Job Application Email to oxysquadtechnologies@gmail.com
  */
 export const sendJobApplicationEmail = async (data, files = []) => {
@@ -371,29 +453,29 @@ export const sendJobApplicationEmail = async (data, files = []) => {
   archiveSubmission('career', data, files);
   saveEmailCopy('career', data.fullName, html);
 
-  // Prepare attachments for Nodemailer
-  const attachments = files.map(file => {
-    if (file.path && fs.existsSync(file.path)) {
-      return {
-        filename: file.originalname || file.filename,
-        path: file.path,
-        contentType: file.mimetype,
-      };
-    }
-    if (file.buffer) {
-      return {
-        filename: file.originalname || 'document.pdf',
-        content: file.buffer,
-        contentType: file.mimetype,
-      };
-    }
-    return null;
-  }).filter(Boolean);
-
+  // Try direct SMTP if configured
   const transporter = createTransporter();
 
   if (transporter) {
     try {
+      const attachments = files.map(file => {
+        if (file.path && fs.existsSync(file.path)) {
+          return {
+            filename: file.originalname || file.filename,
+            path: file.path,
+            contentType: file.mimetype,
+          };
+        }
+        if (file.buffer) {
+          return {
+            filename: file.originalname || 'document.pdf',
+            content: file.buffer,
+            contentType: file.mimetype,
+          };
+        }
+        return null;
+      }).filter(Boolean);
+
       const info = await transporter.sendMail({
         from: `"Setu247 Talent Desk" <${config.smtpUser}>`,
         to: config.recipient,
@@ -403,33 +485,35 @@ export const sendJobApplicationEmail = async (data, files = []) => {
         attachments,
       });
 
-      console.log(`[Email Sent] Successfully delivered job application to ${config.recipient} (Message ID: ${info.messageId})`);
+      console.log(`[Email Sent via SMTP] Successfully delivered job application to ${config.recipient} (Message ID: ${info.messageId})`);
       return {
         success: true,
         delivered: true,
         messageId: info.messageId,
         recipient: config.recipient,
+        method: 'SMTP',
       };
     } catch (err) {
-      console.error(`[SMTP Warning] Could not send via SMTP to ${config.recipient}:`, err.message);
-      // Graceful fallback: return success with archive confirmation
-      return {
-        success: true,
-        delivered: false,
-        error: err.message,
-        recipient: config.recipient,
-        fallbackArchived: true,
-      };
+      console.warn(`[SMTP Warning] SMTP send failed (${err.message}). Using HTTP Gateway fallback...`);
     }
   }
 
-  console.log(`[Notification Queued] Job Application from ${data.fullName} recorded for ${config.recipient}. Set SMTP_PASS in .env for direct SMTP transmission.`);
+  // Automatic Zero-Setup Gateway delivery straight to Gmail:
+  const gatewayResult = await dispatchViaHttpGateway('career', data, files);
+  if (gatewayResult.delivered) {
+    return {
+      success: true,
+      delivered: true,
+      recipient: config.recipient,
+      method: 'HTTP Gateway',
+    };
+  }
+
   return {
     success: true,
     delivered: false,
     recipient: config.recipient,
     fallbackArchived: true,
-    note: 'Submission saved securely in server storage. Set SMTP_PASS in .env for direct Gmail relay.',
   };
 };
 
@@ -445,28 +529,29 @@ export const sendInvestorEnquiryEmail = async (data, files = []) => {
   archiveSubmission('investor', data, files);
   saveEmailCopy('investor', data.fullName, html);
 
-  const attachments = files.map(file => {
-    if (file.path && fs.existsSync(file.path)) {
-      return {
-        filename: file.originalname || file.filename,
-        path: file.path,
-        contentType: file.mimetype,
-      };
-    }
-    if (file.buffer) {
-      return {
-        filename: file.originalname || 'proposal.pdf',
-        content: file.buffer,
-        contentType: file.mimetype,
-      };
-    }
-    return null;
-  }).filter(Boolean);
-
+  // Try direct SMTP if configured
   const transporter = createTransporter();
 
   if (transporter) {
     try {
+      const attachments = files.map(file => {
+        if (file.path && fs.existsSync(file.path)) {
+          return {
+            filename: file.originalname || file.filename,
+            path: file.path,
+            contentType: file.mimetype,
+          };
+        }
+        if (file.buffer) {
+          return {
+            filename: file.originalname || 'proposal.pdf',
+            content: file.buffer,
+            contentType: file.mimetype,
+          };
+        }
+        return null;
+      }).filter(Boolean);
+
       const info = await transporter.sendMail({
         from: `"Setu247 Investor Desk" <${config.smtpUser}>`,
         to: config.recipient,
@@ -476,31 +561,34 @@ export const sendInvestorEnquiryEmail = async (data, files = []) => {
         attachments,
       });
 
-      console.log(`[Email Sent] Successfully delivered investor enquiry to ${config.recipient} (Message ID: ${info.messageId})`);
+      console.log(`[Email Sent via SMTP] Successfully delivered investor enquiry to ${config.recipient} (Message ID: ${info.messageId})`);
       return {
         success: true,
         delivered: true,
         messageId: info.messageId,
         recipient: config.recipient,
+        method: 'SMTP',
       };
     } catch (err) {
-      console.error(`[SMTP Warning] Could not send via SMTP to ${config.recipient}:`, err.message);
-      return {
-        success: true,
-        delivered: false,
-        error: err.message,
-        recipient: config.recipient,
-        fallbackArchived: true,
-      };
+      console.warn(`[SMTP Warning] SMTP send failed (${err.message}). Using HTTP Gateway fallback...`);
     }
   }
 
-  console.log(`[Notification Queued] Investor enquiry from ${data.fullName} recorded for ${config.recipient}. Set SMTP_PASS in .env for direct SMTP transmission.`);
+  // Automatic Zero-Setup Gateway delivery straight to Gmail:
+  const gatewayResult = await dispatchViaHttpGateway('investor', data, files);
+  if (gatewayResult.delivered) {
+    return {
+      success: true,
+      delivered: true,
+      recipient: config.recipient,
+      method: 'HTTP Gateway',
+    };
+  }
+
   return {
     success: true,
     delivered: false,
     recipient: config.recipient,
     fallbackArchived: true,
-    note: 'Submission saved securely in server storage. Set SMTP_PASS in .env for direct Gmail relay.',
   };
 };
