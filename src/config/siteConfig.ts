@@ -22,6 +22,7 @@ export interface SiteConfig {
     contact: string;
     careers: string;
     investors: string;
+    notifications?: string;
   };
   parentCompanyWebsite?: string;
   socials: SocialLinks;
@@ -44,6 +45,7 @@ export const siteConfig: SiteConfig = {
     contact: import.meta.env.VITE_CONTACT_EMAIL || 'info@oxysquad.com',
     careers: import.meta.env.VITE_CAREERS_EMAIL || 'info@oxysquad.com',
     investors: import.meta.env.VITE_INVESTOR_EMAIL || 'info@oxysquad.com',
+    notifications: import.meta.env.VITE_NOTIFICATION_EMAIL || 'oxysquadtechnologies@gmail.com',
   },
 
   // Note: Only non-empty URLs will display social icons per brand rules

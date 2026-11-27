@@ -17,6 +17,11 @@ function backendApiPlugin(): Plugin {
       app.use('/api', apiRouter);
       server.middlewares.use(app);
     },
+    configurePreviewServer(server) {
+      const app = express();
+      app.use('/api', apiRouter);
+      server.middlewares.use(app);
+    },
   };
 }
 
