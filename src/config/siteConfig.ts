@@ -42,7 +42,7 @@ export const siteConfig: SiteConfig = {
   
   emails: {
     contact: import.meta.env.VITE_CONTACT_EMAIL || 'info@oxysquad.com',
-    careers: import.meta.env.VITE_CAREERS_EMAIL || 'oxysquadtechnologies@gmail.com',
+    careers: import.meta.env.VITE_CAREERS_EMAIL || 'info@oxysquad.com',
     investors: import.meta.env.VITE_INVESTOR_EMAIL || 'info@oxysquad.com',
   },
 
